@@ -518,28 +518,9 @@ function handleYouTubeStateChange(screenId, playerState) {
 
 // Função para verificar se o vídeo pode ser reproduzido
 async function checkYouTubeVideoAvailability(videoId) {
-    try {
-        // Tentar obter informações do vídeo usando o endpoint oEmbed
-        const response = await fetch(`https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v=${videoId}&format=json`);
-        if (!response.ok) {
-            console.warn('Não foi possível verificar disponibilidade do vídeo');
-            return true; // Retornar true para tentar carregar mesmo assim
-        }
-        
-        const data = await response.json();
-        
-        // Verificar se o vídeo permite embed
-        if (data && data.html) {
-            console.log('Vídeo permite embed');
-            return true;
-        } else {
-            console.warn('Vídeo não permite embed');
-            return false;
-        }
-    } catch (error) {
-        console.error('Erro ao verificar disponibilidade do vídeo:', error);
-        return true; // Retornar true para tentar carregar mesmo assim
-    }
+    // Retornar true sempre para evitar problemas de CORS/Fetch em ambientes locais ou restritos.
+    // O próprio player do YouTube tratará erros de disponibilidade.
+    return true;
 }
 
 // ==========================================
