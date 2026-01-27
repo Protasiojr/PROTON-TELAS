@@ -328,11 +328,11 @@ function toggleVideoVisibility(screenId) {
 // FUNÇÕES DE LINK
 // ==========================================
 function isYouTubeLink(link) {
-    return link.match(/(?:youtube\.com|youtu\.be)/i);
+    return link.match(/(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=|shorts\/)|youtu\.be\/)/i);
 }
 
 function extractYouTubeId(link) {
-    const regex = /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/;
+    const regex = /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=|shorts\/)|youtu\.be\/)([^"&?\/\s]{11})/;
     const match = link.match(regex);
     return match ? match[1] : null;
 }
