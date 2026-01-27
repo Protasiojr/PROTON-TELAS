@@ -11,7 +11,6 @@ const AppState = {
     isLocked: false,
     defaultScreens: 4,
     youtubePlayers: {},
-    youtubeAPIReady: false,
     isPlaying: {},
     isLocalProtocol: window.location.protocol === 'file:'
 };
@@ -29,22 +28,14 @@ function initializeApp() {
     loadFromLocalStorage();
 }
 
-// Função chamada quando a API do YouTube está pronta
-window.onYouTubeIframeAPIReady = function () {
-    AppState.youtubeAPIReady = true;
-    console.log('YouTube IFrame API está pronta');
-
-    // Recarregar vídeos que foram carregados antes da API estar pronta
-    reloadAllYouTubeVideos();
-};
-
 // Função para recarregar todos os vídeos do YouTube
 function reloadAllYouTubeVideos() {
     AppState.screens.forEach(screen => {
         if (screen.link && isYouTubeLink(screen.link)) {
             const container = document.getElementById(`videoContainer-${screen.id}`);
-            const hasPlayer = container.querySelector(`#youtube-player-${screen.id}`);
-            if (!hasPlayer) {
+            // Verificar se já existe um iframe
+            const hasIframe = container.querySelector(`iframe#youtube-player-${screen.id}`);
+            if (!hasIframe) {
                 renderVideo(screen.id, screen.link);
             }
         }
@@ -85,15 +76,7 @@ function generateScreens(count) {
 
 // Função para destruir todos os players do YouTube
 function destroyAllYouTubePlayers() {
-    for (const screenId in AppState.youtubePlayers) {
-        try {
-            if (AppState.youtubePlayers[screenId] && typeof AppState.youtubePlayers[screenId].destroy === 'function') {
-                AppState.youtubePlayers[screenId].destroy();
-            }
-        } catch (e) {
-            console.error(`Erro ao destruir player ${screenId}:`, e);
-        }
-    }
+    // Limpar referências se houver
     AppState.youtubePlayers = {};
 }
 
@@ -243,16 +226,6 @@ function refreshVideo(screenId) {
 function renderVideo(screenId, link) {
     const container = document.getElementById(`videoContainer-${screenId}`);
 
-    // Destruir player existente se houver
-    if (AppState.youtubePlayers[screenId]) {
-        try {
-            AppState.youtubePlayers[screenId].destroy();
-            delete AppState.youtubePlayers[screenId];
-        } catch (e) {
-            console.error('Erro ao destruir player:', e);
-        }
-    }
-
     // Limpar container
     container.innerHTML = '';
 
@@ -260,47 +233,9 @@ function renderVideo(screenId, link) {
     if (isYouTubeLink(link)) {
         const videoId = extractYouTubeId(link);
         if (videoId) {
-            // Se estiver executando localmente, usar iframe direto
-            if (AppState.isLocalProtocol) {
-                renderYouTubeIframe(container, videoId, screenId);
-                return;
-            }
-
-            // Exibir indicador de carregamento
-            container.innerHTML = `
-                <div class="video-placeholder">
-                    <i class="bi bi-hourglass-split"></i>
-                    <span>Verificando vídeo...</span>
-                </div>
-            `;
-
-            // Tentar renderizar o player
-            if (AppState.youtubeAPIReady) {
-                createYouTubePlayer(container, videoId, screenId);
-            } else {
-                // API ainda não pronta. Tentar novamente em breve ou usar fallback.
-                console.log('API YouTube ainda não pronta. Aguardando...');
-                container.innerHTML = `
-                    <div class="video-placeholder">
-                        <i class="bi bi-hourglass-split"></i>
-                        <span>Carregando player...</span>
-                    </div>
-                `;
-
-                let attempts = 0;
-                const maxAttempts = 50; // 5 segundos
-                const checkInterval = setInterval(() => {
-                    attempts++;
-                    if (AppState.youtubeAPIReady) {
-                        clearInterval(checkInterval);
-                        createYouTubePlayer(container, videoId, screenId);
-                    } else if (attempts >= maxAttempts) {
-                        clearInterval(checkInterval);
-                        console.warn('Timeout aguardando API do YouTube. Usando iframe simples.');
-                        renderYouTubeIframe(container, videoId, screenId);
-                    }
-                }, 100);
-            }
+            // Renderizar usando iframe direto para garantir reprodução
+            // Adicionalmente com enablejsapi=1 caso queira controle futuro
+            renderYouTubeIframe(container, videoId, screenId);
         } else {
             showPlaceholder(container, 'Link inválido');
         }
@@ -335,42 +270,19 @@ function renderVideo(screenId, link) {
     }
 }
 
-function createYouTubePlayer(container, videoId, screenId) {
-    // Limpar placeholder se existir
-    container.innerHTML = '';
-
-    // Criar elemento div para o player
-    const playerDiv = document.createElement('div');
-    playerDiv.id = `youtube-player-${screenId}`;
-    container.appendChild(playerDiv);
-
-    // Criar player usando a API oficial
-    try {
-        AppState.youtubePlayers[screenId] = new YT.Player(`youtube-player-${screenId}`, {
-            videoId: videoId,
-            playerVars: {
-                'autoplay': 1,
-                'mute': 1,
-                'rel': 0,
-                'playsinline': 1
-            },
-            events: {
-                'onReady': (event) => {
-                    console.log(`Player YouTube ${screenId} está pronto`);
-                },
-                'onError': (event) => {
-                    console.error(`Erro no player YouTube ${screenId}:`, event.data);
-                    handleYouTubeError(screenId, event.data, container);
-                },
-                'onStateChange': (event) => {
-                    handleYouTubeStateChange(screenId, event.data);
-                }
-            }
-        });
-    } catch (e) {
-        console.error("Erro ao instanciar YT.Player:", e);
-        renderYouTubeIframe(container, videoId, screenId);
-    }
+function renderYouTubeIframe(container, videoId, screenId) {
+    container.innerHTML = `
+        <iframe
+            id="youtube-player-${screenId}"
+            src="https://www.youtube.com/embed/${videoId}?autoplay=1&mute=1&rel=0&playsinline=1&enablejsapi=1"
+            frameborder="0"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+            allowfullscreen>
+        </iframe>
+    `;
+    // Armazenar referência simples se necessário no futuro
+    AppState.youtubePlayers[screenId] = { type: 'iframe', id: videoId };
+    console.log(`YouTube iframe renderizado para tela ${screenId}`);
 }
 
 function showPlaceholder(container, message) {
@@ -396,148 +308,22 @@ function toggleVideoVisibility(screenId) {
         icon.className = 'bi bi-eye';
         button.classList.remove('hidden');
 
-        // Pausar/retomar player do YouTube se existir
-        if (AppState.youtubePlayers[screenId]) {
-            try {
-                const player = AppState.youtubePlayers[screenId];
-                if (typeof player.playVideo === 'function') {
-                    player.playVideo();
-                }
-            } catch (e) {
-                console.error('Erro ao retomar vídeo:', e);
-            }
+        // Tentar enviar comando play para o iframe se for YouTube
+        const iframe = container.querySelector('iframe');
+        if (iframe && iframe.src.includes('youtube.com')) {
+            iframe.contentWindow.postMessage('{"event":"command","func":"playVideo","args":""}', '*');
         }
     } else {
         container.classList.add('video-hidden');
         icon.className = 'bi bi-eye-slash';
         button.classList.add('hidden');
 
-        // Pausar player do YouTube se existir
-        if (AppState.youtubePlayers[screenId]) {
-            try {
-                const player = AppState.youtubePlayers[screenId];
-                if (typeof player.pauseVideo === 'function') {
-                    player.pauseVideo();
-                }
-            } catch (e) {
-                console.error('Erro ao pausar vídeo:', e);
-            }
+        // Tentar enviar comando pause para o iframe se for YouTube
+        const iframe = container.querySelector('iframe');
+        if (iframe && iframe.src.includes('youtube.com')) {
+            iframe.contentWindow.postMessage('{"event":"command","func":"pauseVideo","args":""}', '*');
         }
     }
-}
-
-// ==========================================
-// TRATAMENTO DE ERROS DO YOUTUBE
-// ==========================================
-function handleYouTubeError(screenId, errorCode, container) {
-    const errorMessage = getYouTubeErrorMessage(errorCode);
-    console.error(`Erro no player YouTube ${screenId} (código ${errorCode}):`, errorMessage);
-
-    // Se for erro 153 (erro de comunicação), tentar fallback para iframe
-    if (errorCode === 153) {
-        console.log(`Tentando fallback para iframe devido ao erro ${errorCode}`);
-        const screen = AppState.screens.find(s => s.id === screenId);
-        if (screen && screen.link) {
-            const videoId = extractYouTubeId(screen.link);
-            if (videoId) {
-                // Destruir player existente
-                if (AppState.youtubePlayers[screenId]) {
-                    try {
-                        AppState.youtubePlayers[screenId].destroy();
-                        delete AppState.youtubePlayers[screenId];
-                    } catch (e) {
-                        console.error('Erro ao destruir player:', e);
-                    }
-                }
-                // Usar iframe direto
-                renderYouTubeIframe(container, videoId, screenId);
-                return;
-            }
-        }
-    }
-
-    // Exibir mensagem de erro específica
-    showPlaceholder(container, errorMessage);
-
-    // Exibir notificação ao usuário
-    showNotification(errorMessage, 'error');
-}
-
-function getYouTubeErrorMessage(errorCode) {
-    const errorMessages = {
-        2: 'Parâmetro inválido. Verifique o link do vídeo.',
-        5: 'O conteúdo HTML5 do player não pode ser reproduzido.',
-        100: 'Vídeo não encontrado. Verifique o link.',
-        101: 'O proprietário do vídeo não permite a reprodução em aplicações de terceiros.',
-        150: 'Erro ao reproduzir vídeo. Tente novamente.',
-        153: 'Erro de comunicação com o YouTube. Tentando método alternativo...'
-    };
-
-    return errorMessages[errorCode] || 'Erro desconhecido ao carregar o vídeo.';
-}
-
-// Função para renderizar YouTube usando iframe direto
-function renderYouTubeIframe(container, videoId, screenId) {
-    container.innerHTML = `
-        <iframe
-            id="youtube-player-${screenId}"
-            src="https://www.youtube.com/embed/${videoId}?autoplay=1&mute=1&rel=0&playsinline=1"
-            frameborder="0"
-            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-            allowfullscreen>
-        </iframe>
-    `;
-    console.log(`YouTube iframe renderizado para tela ${screenId}`);
-}
-
-function handleYouTubeStateChange(screenId, playerState) {
-    const stateNames = {
-        [YT.PlayerState.UNSTARTED]: 'UNSTARTED',
-        [YT.PlayerState.ENDED]: 'ENDED',
-        [YT.PlayerState.PLAYING]: 'PLAYING',
-        [YT.PlayerState.PAUSED]: 'PAUSED',
-        [YT.PlayerState.BUFFERING]: 'BUFFERING',
-        [YT.PlayerState.CUED]: 'CUED'
-    };
-
-    const stateName = stateNames[playerState] || 'UNKNOWN';
-    console.log(`Player YouTube ${screenId} mudou para estado: ${stateName} (${playerState})`);
-
-    // Verificar se o vídeo foi bloqueado pelo proprietário
-    if (playerState === YT.PlayerState.PLAYING) {
-        // Vídeo está sendo reproduzido com sucesso
-        const screen = AppState.screens.find(s => s.id === screenId);
-        if (screen) {
-            screen.isPlaying = true;
-            AppState.isPlaying[screenId] = true;
-        }
-    } else if (playerState === YT.PlayerState.PAUSED) {
-        const screen = AppState.screens.find(s => s.id === screenId);
-        if (screen) {
-            screen.isPlaying = false;
-            AppState.isPlaying[screenId] = false;
-        }
-    } else if (playerState === YT.PlayerState.ENDED) {
-        const screen = AppState.screens.find(s => s.id === screenId);
-        if (screen) {
-            screen.isPlaying = false;
-            AppState.isPlaying[screenId] = false;
-        }
-    } else if (playerState === YT.PlayerState.CUED) {
-        // Vídeo está pronto para ser reproduzido
-        const screen = AppState.screens.find(s => s.id === screenId);
-        if (screen) {
-            screen.isPlaying = false;
-            AppState.isPlaying[screenId] = false;
-        }
-    }
-}
-
-// Função para verificar se o vídeo pode ser reproduzido
-async function checkYouTubeVideoAvailability(videoId) {
-    // Retornar true sempre para evitar problemas de CORS/Fetch em ambientes locais ou restritos.
-    // O próprio player do YouTube tratará erros de disponibilidade.
-    return true;
 }
 
 // ==========================================
