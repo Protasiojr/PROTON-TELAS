@@ -10,7 +10,7 @@ const AppState = {
     screens: [],
     isLocked: false,
     defaultScreens: 4,
-    youtubePlayers: {},
+    plyrInstances: {}, // Armazena instâncias do Plyr
     isPlaying: {},
     isLocalProtocol: window.location.protocol === 'file:'
 };
@@ -28,14 +28,14 @@ function initializeApp() {
     loadFromLocalStorage();
 }
 
-// Função para recarregar todos os vídeos do YouTube
+// Função para recarregar todos os vídeos
 function reloadAllYouTubeVideos() {
+    // Com Plyr, a gestão é automática, mas podemos forçar refresh se necessário
     AppState.screens.forEach(screen => {
-        if (screen.link && isYouTubeLink(screen.link)) {
+        if (screen.link) {
             const container = document.getElementById(`videoContainer-${screen.id}`);
-            // Verificar se já existe um iframe
-            const hasIframe = container.querySelector(`iframe#youtube-player-${screen.id}`);
-            if (!hasIframe) {
+            const hasPlayer = container.querySelector('.plyr');
+            if (!hasPlayer) {
                 renderVideo(screen.id, screen.link);
             }
         }
@@ -49,8 +49,8 @@ function generateScreens(count) {
     AppState.screenCount = count;
     AppState.screens = [];
 
-    // Destruir todos os players do YouTube existentes
-    destroyAllYouTubePlayers();
+    // Destruir todos os players existentes
+    destroyAllPlayers();
 
     const container = document.getElementById('screensContainer');
     container.innerHTML = '';
@@ -74,10 +74,18 @@ function generateScreens(count) {
     }
 }
 
-// Função para destruir todos os players do YouTube
-function destroyAllYouTubePlayers() {
-    // Limpar referências se houver
-    AppState.youtubePlayers = {};
+// Função para destruir todos os players
+function destroyAllPlayers() {
+    for (const screenId in AppState.plyrInstances) {
+        try {
+            if (AppState.plyrInstances[screenId]) {
+                AppState.plyrInstances[screenId].destroy();
+            }
+        } catch (e) {
+            console.error(`Erro ao destruir player ${screenId}:`, e);
+        }
+    }
+    AppState.plyrInstances = {};
 }
 
 function createScreenCard(screenData) {
@@ -226,65 +234,62 @@ function refreshVideo(screenId) {
 function renderVideo(screenId, link) {
     const container = document.getElementById(`videoContainer-${screenId}`);
 
-    // Limpar container
+    // Destruir instância anterior se existir
+    if (AppState.plyrInstances[screenId]) {
+        try {
+            AppState.plyrInstances[screenId].destroy();
+            delete AppState.plyrInstances[screenId];
+        } catch (e) {
+            console.error('Erro ao destruir player anterior:', e);
+        }
+    }
+
     container.innerHTML = '';
 
-    // Verificar tipo de link
     if (isYouTubeLink(link)) {
         const videoId = extractYouTubeId(link);
         if (videoId) {
-            // Renderizar usando iframe direto para garantir reprodução
-            // Adicionalmente com enablejsapi=1 caso queira controle futuro
-            renderYouTubeIframe(container, videoId, screenId);
-        } else {
-            showPlaceholder(container, 'Link inválido');
+            container.innerHTML = `<div id="player-${screenId}" data-plyr-provider="youtube" data-plyr-embed-id="${videoId}"></div>`;
+            initializePlyr(screenId, `#player-${screenId}`);
+            return;
         }
     } else if (isVimeoLink(link)) {
         const videoId = extractVimeoId(link);
         if (videoId) {
-            container.innerHTML = `
-                <iframe
-                    src="https://player.vimeo.com/video/${videoId}?autoplay=1"
-                    allowfullscreen
-                    allow="autoplay; fullscreen; picture-in-picture">
-                </iframe>
-            `;
-        } else {
-            showPlaceholder(container, 'Link inválido');
+            container.innerHTML = `<div id="player-${screenId}" data-plyr-provider="vimeo" data-plyr-embed-id="${videoId}"></div>`;
+            initializePlyr(screenId, `#player-${screenId}`);
+            return;
         }
-    } else if (link.match(/\.(mp4|webm|ogg)$/i)) {
+    } else {
+        // Vídeo local ou direto
         container.innerHTML = `
-            <video controls autoplay>
-                <source src="${link}" type="video/mp4">
-                Seu navegador não suporta o elemento de vídeo.
+            <video id="player-${screenId}" playsinline controls>
+                <source src="${link}" type="video/mp4" />
             </video>
         `;
-    } else {
-        container.innerHTML = `
-            <iframe
-                src="${link}"
-                allowfullscreen
-                sandbox="allow-scripts allow-same-origin allow-presentation">
-            </iframe>
-        `;
+        initializePlyr(screenId, `#player-${screenId}`);
     }
 }
 
-function renderYouTubeIframe(container, videoId, screenId) {
-    const origin = window.location.origin;
-    container.innerHTML = `
-        <iframe
-            id="youtube-player-${screenId}"
-            src="https://www.youtube.com/embed/${videoId}?autoplay=1&mute=1&rel=0&playsinline=1&enablejsapi=1&origin=${origin}"
-            frameborder="0"
-            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-            referrerpolicy="strict-origin-when-cross-origin"
-            allowfullscreen>
-        </iframe>
-    `;
-    // Armazenar referência simples se necessário no futuro
-    AppState.youtubePlayers[screenId] = { type: 'iframe', id: videoId };
-    console.log(`YouTube iframe renderizado para tela ${screenId}`);
+function initializePlyr(screenId, selector) {
+    try {
+        const player = new Plyr(selector, {
+            controls: ['play-large', 'play', 'progress', 'current-time', 'mute', 'volume', 'captions', 'settings', 'pip', 'airplay', 'fullscreen'],
+            autoplay: true,
+            youtube: { noCookie: true, rel: 0, showinfo: 0, iv_load_policy: 3, modestbranding: 1 }
+        });
+
+        AppState.plyrInstances[screenId] = player;
+
+        player.on('ready', () => {
+            console.log(`Plyr pronto na tela ${screenId}`);
+            // Tentar autoplay se permitido pelo navegador
+            player.play().catch(e => console.warn('Autoplay bloqueado pelo navegador:', e));
+        });
+
+    } catch (e) {
+        console.error('Erro ao inicializar Plyr:', e);
+    }
 }
 
 function showPlaceholder(container, message) {
@@ -304,27 +309,18 @@ function toggleVideoVisibility(screenId) {
     const container = document.getElementById(`videoContainer-${screenId}`);
     const button = document.querySelector(`.btn-eye[data-screen-id="${screenId}"]`);
     const icon = button.querySelector('i');
+    const player = AppState.plyrInstances[screenId];
 
     if (screen.visible) {
         container.classList.remove('video-hidden');
         icon.className = 'bi bi-eye';
         button.classList.remove('hidden');
-
-        // Tentar enviar comando play para o iframe se for YouTube
-        const iframe = container.querySelector('iframe');
-        if (iframe && iframe.src.includes('youtube.com')) {
-            iframe.contentWindow.postMessage('{"event":"command","func":"playVideo","args":""}', '*');
-        }
+        if (player) player.play();
     } else {
         container.classList.add('video-hidden');
         icon.className = 'bi bi-eye-slash';
         button.classList.add('hidden');
-
-        // Tentar enviar comando pause para o iframe se for YouTube
-        const iframe = container.querySelector('iframe');
-        if (iframe && iframe.src.includes('youtube.com')) {
-            iframe.contentWindow.postMessage('{"event":"command","func":"pauseVideo","args":""}', '*');
-        }
+        if (player) player.pause();
     }
 }
 
