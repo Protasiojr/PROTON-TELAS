@@ -71,6 +71,8 @@ function generateScreens(count) {
         };
         AppState.screens.push(screenData);
         container.appendChild(createScreenCard(screenData));
+        // Atualizar ícone da plataforma (inicialmente vazio)
+        updatePlatformIcon(screenData.id, screenData.link);
     }
 }
 
@@ -161,7 +163,6 @@ function createScreenCard(screenData) {
         <div class="screen-header">
             <span class="screen-title">Tela ${screenData.id}</span>
             <div class="video-controls">
-                ${getPlatformIcon(screenData.link)}
                 <button class="btn-eye" data-screen-id="${screenData.id}" title="Mostrar/Ocultar Vídeo">
                     <i class="bi bi-eye${screenData.visible ? '' : '-slash'}"></i>
                 </button>
