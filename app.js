@@ -110,47 +110,36 @@ function getPlatformIcon(link) {
 
 // Função para atualizar o ícone da plataforma no DOM
 function updatePlatformIcon(screenId, link) {
-    const videoControls = document.querySelector(`.screen-card[data-screen-id="${screenId}"] .video-controls`);
+    let videoControls = document.querySelector(`.screen-card[data-screen-id="${screenId}"] .video-controls`);
     if (!videoControls) return;
 
-    // Remover ícone existente
-    const existingIcon = videoControls.querySelector('.platform-icon');
-    if (existingIcon) {
-        existingIcon.remove();
+    // Garantir que exista o placeholder (span) para o ícone
+    let placeholder = document.getElementById(`platformIcon-${screenId}`);
+    if (!placeholder) {
+        placeholder = document.createElement('span');
+        placeholder.className = 'platform-icon';
+        placeholder.id = `platformIcon-${screenId}`;
+        videoControls.insertBefore(placeholder, videoControls.firstChild || null);
     }
 
-    // Adicionar novo ícone se houver link
-    const iconHtml = getPlatformIcon(link);
-    if (iconHtml) {
-        // Criar elemento img diretamente
-        const img = document.createElement('img');
-        img.className = 'platform-icon';
-        
-        // Determinar a URL correta baseada na plataforma
-        if (YouTube.isValidUrl(link)) {
-            img.src = YouTube.iconUrl;
-            img.alt = 'YouTube';
-            img.title = 'YouTube';
-        } else if (Vimeo.isValidUrl(link)) {
-            img.src = Vimeo.iconUrl;
-            img.alt = 'Vimeo';
-            img.title = 'Vimeo';
-        } else if (Twitch.isValidUrl(link)) {
-            img.src = Twitch.iconUrl;
-            img.alt = 'Twitch';
-            img.title = 'Twitch';
-        } else if (Kick.isValidUrl(link)) {
-            img.src = Kick.iconUrl;
-            img.alt = 'Kick';
-            img.title = 'Kick';
-        }
-        
-        // Inserir antes do primeiro filho (botão de olho)
-        if (videoControls.firstChild) {
-            videoControls.insertBefore(img, videoControls.firstChild);
-        } else {
-            videoControls.appendChild(img);
-        }
+    // Limpar conteúdo atual
+    placeholder.innerHTML = '';
+
+    // Definir conteúdo com fallback inline (ícones bi se disponíveis, senão texto)
+    if (!link) return;
+
+    if (YouTube.isValidUrl(link)) {
+        placeholder.innerHTML = `<img src="assets/youtube.svg" alt="YouTube" title="YouTube" class="platform-icon">`;
+        placeholder.setAttribute('title', 'YouTube');
+    } else if (Vimeo.isValidUrl(link)) {
+        placeholder.innerHTML = `<img src="assets/vimeo.svg" alt="Vimeo" title="Vimeo" class="platform-icon">`;
+        placeholder.setAttribute('title', 'Vimeo');
+    } else if (Twitch.isValidUrl(link)) {
+        placeholder.innerHTML = `<img src="assets/twitch.svg" alt="Twitch" title="Twitch" class="platform-icon">`;
+        placeholder.setAttribute('title', 'Twitch');
+    } else if (Kick.isValidUrl(link)) {
+        placeholder.innerHTML = `<img src="assets/kick.svg" alt="Kick" title="Kick" class="platform-icon">`;
+        placeholder.setAttribute('title', 'Kick');
     }
 }
 
@@ -163,6 +152,7 @@ function createScreenCard(screenData) {
         <div class="screen-header">
             <span class="screen-title">Tela ${screenData.id}</span>
             <div class="video-controls">
+                <span class="platform-icon" id="platformIcon-${screenData.id}"></span>
                 <button class="btn-eye" data-screen-id="${screenData.id}" title="Mostrar/Ocultar Vídeo">
                     <i class="bi bi-eye${screenData.visible ? '' : '-slash'}"></i>
                 </button>
@@ -264,6 +254,7 @@ function handleLinkInput(e) {
         const screen = AppState.screens.find(s => s.id === screenId);
         if (screen) {
             screen.link = e.target.value;
+            updatePlatformIcon(screenId, screen.link);
         }
     }
 }
