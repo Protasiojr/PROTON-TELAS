@@ -88,25 +88,74 @@ function destroyAllPlayers() {
     AppState.plyrInstances = {};
 }
 
+// Função auxiliar para detectar plataforma e retornar ícone
+function getPlatformIcon(link) {
+    if (!link) return '';
+    if (isYouTubeLink(link)) {
+        return '<img src="https://upload.wikimedia.org/wikipedia/commons/9/9f/Youtube%28amin%29.png" alt="YouTube" title="YouTube" class="platform-icon">';
+    }
+    if (isVimeoLink(link)) {
+        return '<img src="https://upload.wikimedia.org/wikipedia/commons/9/9c/Vimeo_Logo.svg" alt="Vimeo" title="Vimeo" class="platform-icon">';
+    }
+    if (isTwitchLink(link)) {
+        return '<img src="https://upload.wikimedia.org/wikipedia/commons/5/5f/Twitch_logo.svg" alt="Twitch" title="Twitch" class="platform-icon">';
+    }
+    if (isKickLink(link)) {
+        return '<img src="https://upload.wikimedia.org/wikipedia/commons/5/5f/Kick_logo.svg" alt="Kick" title="Kick" class="platform-icon">';
+    }
+    return '';
+}
+
+// Função para atualizar o ícone da plataforma no DOM
+function updatePlatformIcon(screenId, link) {
+    const videoControls = document.querySelector(`.screen-card[data-screen-id="${screenId}"] .video-controls`);
+    if (!videoControls) return;
+
+    // Remover ícone existente
+    const existingIcon = videoControls.querySelector('.platform-icon');
+    if (existingIcon) {
+        existingIcon.remove();
+    }
+
+    // Adicionar novo ícone se houver link
+    const iconHtml = getPlatformIcon(link);
+    if (iconHtml) {
+        // Criar elemento img diretamente
+        const img = document.createElement('img');
+        img.className = 'platform-icon';
+        
+        // Determinar a URL correta baseada na plataforma
+        if (isYouTubeLink(link)) {
+            img.src = 'https://upload.wikimedia.org/wikipedia/commons/9/9f/Youtube%28amin%29.png';
+            img.alt = 'YouTube';
+            img.title = 'YouTube';
+        } else if (isVimeoLink(link)) {
+            img.src = 'https://upload.wikimedia.org/wikipedia/commons/9/9c/Vimeo_Logo.svg';
+            img.alt = 'Vimeo';
+            img.title = 'Vimeo';
+        } else if (isTwitchLink(link)) {
+            img.src = 'https://upload.wikimedia.org/wikipedia/commons/5/5f/Twitch_logo.svg';
+            img.alt = 'Twitch';
+            img.title = 'Twitch';
+        } else if (isKickLink(link)) {
+            img.src = 'https://upload.wikimedia.org/wikipedia/commons/5/5f/Kick_logo.svg';
+            img.alt = 'Kick';
+            img.title = 'Kick';
+        }
+        
+        // Inserir antes do primeiro filho (botão de olho)
+        if (videoControls.firstChild) {
+            videoControls.insertBefore(img, videoControls.firstChild);
+        } else {
+            videoControls.appendChild(img);
+        }
+    }
+}
+
 function createScreenCard(screenData) {
     const card = document.createElement('div');
     card.className = 'screen-card';
     card.dataset.screenId = screenData.id;
-
-    // Função auxiliar para detectar plataforma
-    function getPlatformIcon(link) {
-        if (!link) return '';
-        if (isYouTubeLink(link)) {
-            return '<img src="https://upload.wikimedia.org/wikipedia/commons/9/9f/Youtube%28amin%29.png" alt="YouTube" title="YouTube" style="height:20px;vertical-align:middle;margin-right:4px;">';
-        }
-        if (isVimeoLink(link)) {
-            return '<img src="https://upload.wikimedia.org/wikipedia/commons/9/9c/Vimeo_Logo.svg" alt="Vimeo" title="Vimeo" style="height:20px;vertical-align:middle;margin-right:4px;">';
-        }
-        if (isTwitchLink(link)) {
-            return '<img src="https://upload.wikimedia.org/wikipedia/commons/5/5f/Twitch_logo.svg" alt="Twitch" title="Twitch" style="height:20px;vertical-align:middle;margin-right:4px;">';
-        }
-        return '';
-    }
 
     card.innerHTML = `
         <div class="screen-header">
@@ -233,6 +282,7 @@ function applyVideo(screenId) {
 
     screen.link = link;
     renderVideo(screenId, link);
+    updatePlatformIcon(screenId, link);
     showNotification(`Vídeo aplicado na Tela ${screenId}`, 'success');
 }
 
@@ -600,6 +650,7 @@ function loadConfigurations(config) {
             // Renderizar vídeo se houver link
             if (screen.link) {
                 renderVideo(screen.id, screen.link);
+                updatePlatformIcon(screen.id, screen.link);
             }
         }
     });

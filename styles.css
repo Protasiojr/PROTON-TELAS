@@ -297,6 +297,19 @@ body {
     align-items: center;
 }
 
+/* Ícone da plataforma */
+.platform-icon {
+    height: 20px;
+    vertical-align: middle;
+    margin-right: 4px;
+    opacity: 0.9;
+    transition: opacity 0.3s ease;
+}
+
+.platform-icon:hover {
+    opacity: 1;
+}
+
 /* Input de Link */
 .link-input-group {
     display: flex;
