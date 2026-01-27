@@ -11,7 +11,8 @@ const AppState = {
     isLocked: false,
     defaultScreens: 4,
     youtubePlayers: {},
-    youtubeAPIReady: false
+    youtubeAPIReady: false,
+    isPlaying: {}
 };
 
 // ==========================================
@@ -258,42 +259,62 @@ function renderVideo(screenId, link) {
     if (isYouTubeLink(link)) {
         const videoId = extractYouTubeId(link);
         if (videoId) {
-            if (AppState.youtubeAPIReady) {
-                // Criar elemento div para o player
-                const playerDiv = document.createElement('div');
-                playerDiv.id = `youtube-player-${screenId}`;
-                container.appendChild(playerDiv);
+            // Exibir indicador de carregamento
+            container.innerHTML = `
+                <div class="video-placeholder">
+                    <i class="bi bi-hourglass-split"></i>
+                    <span>Verificando vídeo...</span>
+                </div>
+            `;
+            
+            // Verificar disponibilidade do vídeo (opcional, pois pode falhar)
+            checkYouTubeVideoAvailability(videoId).then(canEmbed => {
+                if (!canEmbed) {
+                    showPlaceholder(container, 'Este vídeo não permite reprodução em aplicações de terceiros.');
+                    showNotification('Vídeo não disponível para embed', 'error');
+                    return;
+                }
                 
-                // Criar player usando a API oficial
-                AppState.youtubePlayers[screenId] = new YT.Player(`youtube-player-${screenId}`, {
-                    videoId: videoId,
-                    playerVars: {
-                        'autoplay': 1,
-                        'rel': 0,
-                        'playsinline': 1,
-                        'origin': window.location.origin
-                    },
-                    events: {
-                        'onReady': (event) => {
-                            console.log(`Player YouTube ${screenId} está pronto`);
+                if (AppState.youtubeAPIReady) {
+                    // Criar elemento div para o player
+                    const playerDiv = document.createElement('div');
+                    playerDiv.id = `youtube-player-${screenId}`;
+                    container.appendChild(playerDiv);
+                    
+                    // Criar player usando a API oficial
+                    AppState.youtubePlayers[screenId] = new YT.Player(`youtube-player-${screenId}`, {
+                        videoId: videoId,
+                        playerVars: {
+                            'autoplay': 1,
+                            'rel': 0,
+                            'playsinline': 1,
+                            'origin': window.location.origin
                         },
-                        'onError': (event) => {
-                            console.error(`Erro no player YouTube ${screenId}:`, event.data);
-                            showPlaceholder(container, 'Erro ao carregar vídeo');
+                        events: {
+                            'onReady': (event) => {
+                                console.log(`Player YouTube ${screenId} está pronto`);
+                            },
+                            'onError': (event) => {
+                                console.error(`Erro no player YouTube ${screenId}:`, event.data);
+                                handleYouTubeError(screenId, event.data, container);
+                            },
+                            'onStateChange': (event) => {
+                                handleYouTubeStateChange(screenId, event.data);
+                            }
                         }
-                    }
-                });
-            } else {
-                // Fallback para iframe se a API não estiver pronta
-                container.innerHTML = `
-                    <div id="youtube-player-${screenId}"></div>
-                `;
-                setTimeout(() => {
-                    if (AppState.youtubeAPIReady) {
-                        renderVideo(screenId, link);
-                    }
-                }, 100);
-            }
+                    });
+                } else {
+                    // Fallback para iframe se a API não estiver pronta
+                    container.innerHTML = `
+                        <div id="youtube-player-${screenId}"></div>
+                    `;
+                    setTimeout(() => {
+                        if (AppState.youtubeAPIReady) {
+                            renderVideo(screenId, link);
+                        }
+                    }, 100);
+                }
+            });
         } else {
             showPlaceholder(container, 'Link inválido');
         }
@@ -378,6 +399,101 @@ function toggleVideoVisibility(screenId) {
                 console.error('Erro ao pausar vídeo:', e);
             }
         }
+    }
+}
+
+// ==========================================
+// TRATAMENTO DE ERROS DO YOUTUBE
+// ==========================================
+function handleYouTubeError(screenId, errorCode, container) {
+    const errorMessage = getYouTubeErrorMessage(errorCode);
+    console.error(`Erro no player YouTube ${screenId} (código ${errorCode}):`, errorMessage);
+    
+    // Exibir mensagem de erro específica
+    showPlaceholder(container, errorMessage);
+    
+    // Exibir notificação ao usuário
+    showNotification(errorMessage, 'error');
+}
+
+function getYouTubeErrorMessage(errorCode) {
+    const errorMessages = {
+        2: 'Parâmetro inválido. Verifique o link do vídeo.',
+        5: 'O conteúdo HTML5 do player não pode ser reproduzido.',
+        100: 'Vídeo não encontrado. Verifique o link.',
+        101: 'O proprietário do vídeo não permite a reprodução em aplicações de terceiros.',
+        150: 'Erro ao reproduzir vídeo. Tente novamente.'
+    };
+    
+    return errorMessages[errorCode] || 'Erro desconhecido ao carregar o vídeo.';
+}
+
+function handleYouTubeStateChange(screenId, playerState) {
+    const stateNames = {
+        [YT.PlayerState.UNSTARTED]: 'UNSTARTED',
+        [YT.PlayerState.ENDED]: 'ENDED',
+        [YT.PlayerState.PLAYING]: 'PLAYING',
+        [YT.PlayerState.PAUSED]: 'PAUSED',
+        [YT.PlayerState.BUFFERING]: 'BUFFERING',
+        [YT.PlayerState.CUED]: 'CUED'
+    };
+    
+    const stateName = stateNames[playerState] || 'UNKNOWN';
+    console.log(`Player YouTube ${screenId} mudou para estado: ${stateName} (${playerState})`);
+    
+    // Verificar se o vídeo foi bloqueado pelo proprietário
+    if (playerState === YT.PlayerState.PLAYING) {
+        // Vídeo está sendo reproduzido com sucesso
+        const screen = AppState.screens.find(s => s.id === screenId);
+        if (screen) {
+            screen.isPlaying = true;
+            AppState.isPlaying[screenId] = true;
+        }
+    } else if (playerState === YT.PlayerState.PAUSED) {
+        const screen = AppState.screens.find(s => s.id === screenId);
+        if (screen) {
+            screen.isPlaying = false;
+            AppState.isPlaying[screenId] = false;
+        }
+    } else if (playerState === YT.PlayerState.ENDED) {
+        const screen = AppState.screens.find(s => s.id === screenId);
+        if (screen) {
+            screen.isPlaying = false;
+            AppState.isPlaying[screenId] = false;
+        }
+    } else if (playerState === YT.PlayerState.CUED) {
+        // Vídeo está pronto para ser reproduzido
+        const screen = AppState.screens.find(s => s.id === screenId);
+        if (screen) {
+            screen.isPlaying = false;
+            AppState.isPlaying[screenId] = false;
+        }
+    }
+}
+
+// Função para verificar se o vídeo pode ser reproduzido
+async function checkYouTubeVideoAvailability(videoId) {
+    try {
+        // Tentar obter informações do vídeo usando o endpoint oEmbed
+        const response = await fetch(`https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v=${videoId}&format=json`);
+        if (!response.ok) {
+            console.warn('Não foi possível verificar disponibilidade do vídeo');
+            return true; // Retornar true para tentar carregar mesmo assim
+        }
+        
+        const data = await response.json();
+        
+        // Verificar se o vídeo permite embed
+        if (data && data.html) {
+            console.log('Vídeo permite embed');
+            return true;
+        } else {
+            console.warn('Vídeo não permite embed');
+            return false;
+        }
+    } catch (error) {
+        console.error('Erro ao verificar disponibilidade do vídeo:', error);
+        return true; // Retornar true para tentar carregar mesmo assim
     }
 }
 
