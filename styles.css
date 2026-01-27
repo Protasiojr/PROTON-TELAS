@@ -242,6 +242,19 @@ body {
     padding-top: 0;
 }
 
+/* Estilos específicos para players do YouTube */
+.video-container > div[id^="youtube-player-"] {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+}
+
+.video-container:has(div[id^="youtube-player-"]) {
+    padding-top: 0;
+}
+
 .video-placeholder {
     position: absolute;
     top: 0;
