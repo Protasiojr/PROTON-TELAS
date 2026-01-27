@@ -284,13 +284,11 @@ function renderVideo(screenId, link) {
                     // Criar player usando a API oficial
                     AppState.youtubePlayers[screenId] = new YT.Player(`youtube-player-${screenId}`, {
                         videoId: videoId,
-                        host: 'https://www.youtube-nocookie.com',
                         playerVars: {
                             'autoplay': 1,
                             'mute': 1,
                             'rel': 0,
-                            'playsinline': 1,
-                            'origin': window.location.origin
+                            'playsinline': 1
                         },
                         events: {
                             'onReady': (event) => {
