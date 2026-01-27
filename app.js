@@ -436,15 +436,23 @@ function extractVimeoId(link) {
 }
 
 function isTwitchLink(link) {
-    return link.match(/(?:twitch\.tv\/)/i);
+    return link.match(/(?:twitch\.tv\/|clips\.twitch\.tv\/)/i);
 }
 
 function extractTwitchData(link) {
-    const videoMatch = link.match(/twitch\.tv\/videos\/(\d+)/);
-    if (videoMatch) return { type: 'video', id: videoMatch[1] };
+    // Check for clip (clips.twitch.tv/Slug or twitch.tv/username/clip/Slug)
+    const clipMatch = link.match(/(?:clips\.twitch\.tv\/|twitch\.tv\/[^/]+\/clip\/)([a-zA-Z0-9_-]+)/);
+    if (clipMatch) return { type: 'clip', id: clipMatch[1] };
 
-    const channelMatch = link.match(/twitch\.tv\/([a-zA-Z0-9_]+)/);
-    if (channelMatch) return { type: 'channel', id: channelMatch[1] };
+    // Check for video (VOD) - add 'v' prefix as required by Twitch API
+    const videoMatch = link.match(/twitch\.tv\/videos\/(\d+)/);
+    if (videoMatch) return { type: 'video', id: 'v' + videoMatch[1] };
+
+    // Check for channel (live stream)
+    const channelMatch = link.match(/twitch\.tv\/([a-zA-Z0-9_]+)(?:\/|$)/);
+    if (channelMatch && !link.includes('/videos/') && !link.includes('/clip/')) {
+        return { type: 'channel', id: channelMatch[1] };
+    }
 
     return null;
 }
