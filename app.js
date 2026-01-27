@@ -246,38 +246,116 @@ function renderVideo(screenId, link) {
 
     container.innerHTML = '';
 
-    if (isYouTubeLink(link)) {
-        const videoId = extractYouTubeId(link);
-        if (videoId) {
-            const origin = window.location.origin;
-            container.innerHTML = `
-                <div class="plyr__video-embed" id="player-${screenId}">
-                    <iframe
-                        src="https://www.youtube.com/embed/${videoId}?origin=${origin}&iv_load_policy=3&modestbranding=1&playsinline=1&showinfo=0&rel=0&enablejsapi=1"
-                        allowfullscreen
-                        allowtransparency
-                        allow="autoplay">
-                    </iframe>
-                </div>
-            `;
-            initializePlyr(screenId, `#player-${screenId}`);
-            return;
-        }
-    } else if (isVimeoLink(link)) {
-        const videoId = extractVimeoId(link);
-        if (videoId) {
-            container.innerHTML = `<div id="player-${screenId}" data-plyr-provider="vimeo" data-plyr-embed-id="${videoId}"></div>`;
-            initializePlyr(screenId, `#player-${screenId}`);
-            return;
-        }
-    } else {
-        // Vídeo local ou direto
+    // Fallback: Se Plyr não estiver definido, usar método nativo
+    if (typeof Plyr === 'undefined') {
+        console.warn('Plyr não carregado. Usando fallback nativo.');
+        renderNativeVideo(container, link, screenId);
+        return;
+    }
+
+    // Identificar tipo de vídeo e extrair ID
+    const youtubeId = extractYouTubeId(link);
+    const vimeoId = extractVimeoId(link);
+    const twitchData = extractTwitchData(link);
+    const kickId = extractKickId(link);
+
+    if (youtubeId) {
+        const origin = window.location.origin;
         container.innerHTML = `
-            <video id="player-${screenId}" playsinline controls>
-                <source src="${link}" type="video/mp4" />
-            </video>
+            <div class="plyr__video-embed" id="player-${screenId}">
+                <iframe
+                    src="https://www.youtube.com/embed/${youtubeId}?origin=${origin}&iv_load_policy=3&modestbranding=1&playsinline=1&showinfo=0&rel=0&enablejsapi=1"
+                    allowfullscreen
+                    allowtransparency
+                    allow="autoplay">
+                </iframe>
+            </div>
         `;
         initializePlyr(screenId, `#player-${screenId}`);
+    } else if (vimeoId) {
+        container.innerHTML = `<div id="player-${screenId}" data-plyr-provider="vimeo" data-plyr-embed-id="${vimeoId}"></div>`;
+        initializePlyr(screenId, `#player-${screenId}`);
+    } else if (twitchData) {
+        // Fallback nativo para Twitch pois Plyr com Twitch + Parent param pode ser instável
+        renderNativeVideo(container, link, screenId);
+    } else if (kickId) {
+        // Kick não tem suporte oficial no Plyr, usar native iframe
+        renderNativeVideo(container, link, screenId);
+    } else {
+        // Vídeo local ou direto
+        if (link.match(/\.(mp4|webm|ogg)$/i) || link.startsWith('blob:')) {
+            container.innerHTML = `
+                <video id="player-${screenId}" playsinline controls>
+                    <source src="${link}" type="video/mp4" />
+                </video>
+            `;
+            initializePlyr(screenId, `#player-${screenId}`);
+        } else {
+            console.warn('Tipo de vídeo não reconhecido, tentando iframe genérico');
+            renderNativeVideo(container, link, screenId);
+        }
+    }
+}
+
+// Fallback para player nativo (sem Plyr ou em caso de erro)
+function renderNativeVideo(container, link, screenId) {
+    const youtubeId = extractYouTubeId(link);
+    const vimeoId = extractVimeoId(link);
+    const twitchData = extractTwitchData(link);
+    const kickId = extractKickId(link);
+
+    if (youtubeId) {
+        const origin = window.location.origin;
+        container.innerHTML = `
+            <iframe
+                id="youtube-player-${screenId}"
+                src="https://www.youtube.com/embed/${youtubeId}?origin=${origin}&autoplay=1&mute=1&rel=0&playsinline=1&enablejsapi=1"
+                frameborder="0"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                referrerpolicy="strict-origin-when-cross-origin"
+                allowfullscreen>
+            </iframe>
+        `;
+    } else if (vimeoId) {
+        container.innerHTML = `
+            <iframe
+                src="https://player.vimeo.com/video/${vimeoId}?autoplay=1"
+                allowfullscreen
+                allow="autoplay; fullscreen; picture-in-picture">
+            </iframe>
+        `;
+    } else if (twitchData) {
+        const hostname = window.location.hostname;
+        const parentParam = hostname ? `&parent=${hostname}` : '';
+        const src = twitchData.type === 'channel'
+            ? `https://player.twitch.tv/?channel=${twitchData.id}${parentParam}&autoplay=true`
+            : `https://player.twitch.tv/?video=${twitchData.id}${parentParam}&autoplay=true`;
+
+        container.innerHTML = `
+            <iframe
+                src="${src}"
+                allowfullscreen
+                scrolling="no"
+                allow="autoplay; fullscreen">
+            </iframe>
+        `;
+    } else if (kickId) {
+        container.innerHTML = `
+            <iframe
+                src="https://player.kick.com/${kickId}?autoplay=true"
+                allowfullscreen
+                scrolling="no"
+                allow="autoplay; fullscreen">
+            </iframe>
+        `;
+    } else {
+        container.innerHTML = `
+            <iframe
+                src="${link}"
+                allowfullscreen
+                sandbox="allow-scripts allow-same-origin allow-presentation">
+            </iframe>
+        `;
     }
 }
 
@@ -354,6 +432,29 @@ function isVimeoLink(link) {
 function extractVimeoId(link) {
     const regex = /vimeo\.com\/(\d+)/;
     const match = link.match(regex);
+    return match ? match[1] : null;
+}
+
+function isTwitchLink(link) {
+    return link.match(/(?:twitch\.tv\/)/i);
+}
+
+function extractTwitchData(link) {
+    const videoMatch = link.match(/twitch\.tv\/videos\/(\d+)/);
+    if (videoMatch) return { type: 'video', id: videoMatch[1] };
+
+    const channelMatch = link.match(/twitch\.tv\/([a-zA-Z0-9_]+)/);
+    if (channelMatch) return { type: 'channel', id: channelMatch[1] };
+
+    return null;
+}
+
+function isKickLink(link) {
+    return link.match(/(?:kick\.com\/)/i);
+}
+
+function extractKickId(link) {
+    const match = link.match(/kick\.com\/([a-zA-Z0-9_]+)/);
     return match ? match[1] : null;
 }
 
