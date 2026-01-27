@@ -12,7 +12,8 @@ const AppState = {
     defaultScreens: 4,
     youtubePlayers: {},
     youtubeAPIReady: false,
-    isPlaying: {}
+    isPlaying: {},
+    isLocalProtocol: window.location.protocol === 'file:'
 };
 
 // ==========================================
@@ -259,6 +260,12 @@ function renderVideo(screenId, link) {
     if (isYouTubeLink(link)) {
         const videoId = extractYouTubeId(link);
         if (videoId) {
+            // Se estiver executando localmente, usar iframe direto
+            if (AppState.isLocalProtocol) {
+                renderYouTubeIframe(container, videoId, screenId);
+                return;
+            }
+            
             // Exibir indicador de carregamento
             container.innerHTML = `
                 <div class="video-placeholder">
@@ -409,6 +416,29 @@ function handleYouTubeError(screenId, errorCode, container) {
     const errorMessage = getYouTubeErrorMessage(errorCode);
     console.error(`Erro no player YouTube ${screenId} (código ${errorCode}):`, errorMessage);
     
+    // Se for erro 153 (erro de comunicação), tentar fallback para iframe
+    if (errorCode === 153) {
+        console.log(`Tentando fallback para iframe devido ao erro ${errorCode}`);
+        const screen = AppState.screens.find(s => s.id === screenId);
+        if (screen && screen.link) {
+            const videoId = extractYouTubeId(screen.link);
+            if (videoId) {
+                // Destruir player existente
+                if (AppState.youtubePlayers[screenId]) {
+                    try {
+                        AppState.youtubePlayers[screenId].destroy();
+                        delete AppState.youtubePlayers[screenId];
+                    } catch (e) {
+                        console.error('Erro ao destruir player:', e);
+                    }
+                }
+                // Usar iframe direto
+                renderYouTubeIframe(container, videoId, screenId);
+                return;
+            }
+        }
+    }
+    
     // Exibir mensagem de erro específica
     showPlaceholder(container, errorMessage);
     
@@ -422,10 +452,25 @@ function getYouTubeErrorMessage(errorCode) {
         5: 'O conteúdo HTML5 do player não pode ser reproduzido.',
         100: 'Vídeo não encontrado. Verifique o link.',
         101: 'O proprietário do vídeo não permite a reprodução em aplicações de terceiros.',
-        150: 'Erro ao reproduzir vídeo. Tente novamente.'
+        150: 'Erro ao reproduzir vídeo. Tente novamente.',
+        153: 'Erro de comunicação com o YouTube. Tentando método alternativo...'
     };
     
     return errorMessages[errorCode] || 'Erro desconhecido ao carregar o vídeo.';
+}
+
+// Função para renderizar YouTube usando iframe direto
+function renderYouTubeIframe(container, videoId, screenId) {
+    container.innerHTML = `
+        <iframe
+            id="youtube-player-${screenId}"
+            src="https://www.youtube.com/embed/${videoId}?autoplay=1&mute=1&rel=0&playsinline=1"
+            frameborder="0"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+            allowfullscreen>
+        </iframe>
+    `;
+    console.log(`YouTube iframe renderizado para tela ${screenId}`);
 }
 
 function handleYouTubeStateChange(screenId, playerState) {
