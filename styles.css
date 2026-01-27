@@ -297,17 +297,26 @@ body {
     align-items: center;
 }
 
-/* Ícone da plataforma */
-.platform-icon {
-    height: 20px;
-    vertical-align: middle;
+/* Ícone da plataforma: ocupar mesma área do botão de olho e centralizar */
+.video-controls > .platform-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px; /* igual ao .btn-eye */
+    height: 28px; /* igual ao .btn-eye */
     margin-right: 4px;
-    opacity: 0.9;
-    transition: opacity 0.3s ease;
+    opacity: 0.95;
+    transition: opacity 0.2s ease;
 }
 
-.platform-icon:hover {
+.video-controls > .platform-icon:hover {
     opacity: 1;
+}
+
+.platform-icon img {
+    display: block;
+    width: 16px; /* aproximado ao tamanho do ícone interno do botão */
+    height: 16px;
 }
 
 /* Input de Link */
