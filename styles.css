@@ -104,24 +104,7 @@ body {
     transform: none;
 }
 
-.btn-google-login {
-    background-color: #DB4437;
-    color: var(--primary-color);
-    border: none;
-    width: 40px;
-    height: 40px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 8px;
-    transition: all 0.3s ease;
-}
-
-.btn-google-login:hover {
-    background-color: #c23321;
-    transform: scale(1.05);
-    color: var(--primary-color);
-}
+/* .btn-google-login removido - botão de login Google eliminado do navbar */
 
 /* Main Content */
 .main-content {
