@@ -30,7 +30,6 @@ function initializeApp() {
 }
 
 // Função chamada quando a API do YouTube está pronta
-// Função chamada quando a API do YouTube está pronta
 window.onYouTubeIframeAPIReady = function () {
     AppState.youtubeAPIReady = true;
     console.log('YouTube IFrame API está pronta');
@@ -39,11 +38,307 @@ window.onYouTubeIframeAPIReady = function () {
     reloadAllYouTubeVideos();
 };
 
-// ... (existing code for reloadAllYouTubeVideos) ... 
+// Função para recarregar todos os vídeos do YouTube
+function reloadAllYouTubeVideos() {
+    AppState.screens.forEach(screen => {
+        if (screen.link && isYouTubeLink(screen.link)) {
+            const container = document.getElementById(`videoContainer-${screen.id}`);
+            const hasPlayer = container.querySelector(`#youtube-player-${screen.id}`);
+            if (!hasPlayer) {
+                renderVideo(screen.id, screen.link);
+            }
+        }
+    });
+}
 
-// ... inside renderVideo ...
+// ==========================================
+// GERAÇÃO DE TELAS
+// ==========================================
+function generateScreens(count) {
+    AppState.screenCount = count;
+    AppState.screens = [];
 
-if (AppState.youtubeAPIReady) {
+    // Destruir todos os players do YouTube existentes
+    destroyAllYouTubePlayers();
+
+    const container = document.getElementById('screensContainer');
+    container.innerHTML = '';
+
+    // Atualizar classe do grid
+    container.className = 'screens-grid';
+    container.classList.add(`screens-${count}`);
+
+    // Atualizar dropdown ativo
+    updateDropdownActive(count);
+
+    // Gerar cards de tela
+    for (let i = 0; i < count; i++) {
+        const screenData = {
+            id: i + 1,
+            link: '',
+            visible: true
+        };
+        AppState.screens.push(screenData);
+        container.appendChild(createScreenCard(screenData));
+    }
+}
+
+// Função para destruir todos os players do YouTube
+function destroyAllYouTubePlayers() {
+    for (const screenId in AppState.youtubePlayers) {
+        try {
+            if (AppState.youtubePlayers[screenId] && typeof AppState.youtubePlayers[screenId].destroy === 'function') {
+                AppState.youtubePlayers[screenId].destroy();
+            }
+        } catch (e) {
+            console.error(`Erro ao destruir player ${screenId}:`, e);
+        }
+    }
+    AppState.youtubePlayers = {};
+}
+
+function createScreenCard(screenData) {
+    const card = document.createElement('div');
+    card.className = 'screen-card';
+    card.dataset.screenId = screenData.id;
+
+    card.innerHTML = `
+        <div class="screen-header">
+            <span class="screen-title">Tela ${screenData.id}</span>
+            <div class="video-controls">
+                <button class="btn-eye" data-screen-id="${screenData.id}" title="Mostrar/Ocultar Vídeo">
+                    <i class="bi bi-eye${screenData.visible ? '' : '-slash'}"></i>
+                </button>
+            </div>
+        </div>
+        <div class="screen-body">
+            <div class="video-container" id="videoContainer-${screenData.id}">
+                <div class="video-placeholder">
+                    <i class="bi bi-play-circle"></i>
+                    <span>Aguardando link...</span>
+                </div>
+            </div>
+            <div class="link-input-group">
+                <input type="text" 
+                       class="link-input" 
+                       id="linkInput-${screenData.id}" 
+                       placeholder="Cole o link do vídeo aqui..."
+                       data-screen-id="${screenData.id}">
+            </div>
+            <div class="control-buttons">
+                <button class="btn-control" data-action="refresh" data-screen-id="${screenData.id}" title="Atualizar Vídeo">
+                    <i class="bi bi-arrow-clockwise"></i>
+                </button>
+                <button class="btn-control" data-action="apply" data-screen-id="${screenData.id}" title="Aplicar Vídeo">
+                    <i class="bi bi-play-fill"></i>
+                </button>
+            </div>
+        </div>
+    `;
+
+    return card;
+}
+
+function updateDropdownActive(count) {
+    const dropdownItems = document.querySelectorAll('.dropdown-item[data-screens]');
+    dropdownItems.forEach(item => {
+        if (parseInt(item.dataset.screens) === count) {
+            item.classList.add('active');
+        } else {
+            item.classList.remove('active');
+        }
+    });
+}
+
+// ==========================================
+// EVENT LISTENERS
+// ==========================================
+function setupEventListeners() {
+    // Dropdown de quantidade de telas
+    const dropdownItems = document.querySelectorAll('.dropdown-item[data-screens]');
+    dropdownItems.forEach(item => {
+        item.addEventListener('click', (e) => {
+            e.preventDefault();
+            const screens = parseInt(item.dataset.screens);
+            generateScreens(screens);
+        });
+    });
+
+    // Botão Upload
+    document.getElementById('btnUpload').addEventListener('click', () => {
+        document.getElementById('uploadJson').click();
+    });
+
+    // Input de arquivo JSON
+    document.getElementById('uploadJson').addEventListener('change', handleFileUpload);
+
+    // Botão Lock/Unlock
+    document.getElementById('btnLock').addEventListener('click', toggleLock);
+
+    // Botão Save
+    document.getElementById('btnSave').addEventListener('click', saveConfigurations);
+
+    // Event delegation para botões de tela
+    document.getElementById('screensContainer').addEventListener('click', handleScreenButtonClick);
+
+    // Event delegation para inputs de link
+    document.getElementById('screensContainer').addEventListener('input', handleLinkInput);
+}
+
+function handleScreenButtonClick(e) {
+    const button = e.target.closest('button');
+    if (!button) return;
+
+    const screenId = parseInt(button.dataset.screenId);
+    const action = button.dataset.action;
+
+    if (button.classList.contains('btn-eye')) {
+        toggleVideoVisibility(screenId);
+    } else if (action === 'refresh') {
+        refreshVideo(screenId);
+    } else if (action === 'apply') {
+        applyVideo(screenId);
+    }
+}
+
+function handleLinkInput(e) {
+    if (e.target.classList.contains('link-input')) {
+        const screenId = parseInt(e.target.dataset.screenId);
+        const screen = AppState.screens.find(s => s.id === screenId);
+        if (screen) {
+            screen.link = e.target.value;
+        }
+    }
+}
+
+// ==========================================
+// CONTROLES DE VÍDEO
+// ==========================================
+function applyVideo(screenId) {
+    const screen = AppState.screens.find(s => s.id === screenId);
+    if (!screen) return;
+
+    const link = document.getElementById(`linkInput-${screenId}`).value.trim();
+    if (!link) {
+        showNotification('Por favor, insira um link válido.', 'warning');
+        return;
+    }
+
+    screen.link = link;
+    renderVideo(screenId, link);
+    showNotification(`Vídeo aplicado na Tela ${screenId}`, 'success');
+}
+
+function refreshVideo(screenId) {
+    const screen = AppState.screens.find(s => s.id === screenId);
+    if (!screen || !screen.link) {
+        showNotification('Não há vídeo para atualizar nesta tela.', 'warning');
+        return;
+    }
+
+    renderVideo(screenId, screen.link);
+    showNotification(`Vídeo atualizado na Tela ${screenId}`, 'success');
+}
+
+function renderVideo(screenId, link) {
+    const container = document.getElementById(`videoContainer-${screenId}`);
+
+    // Destruir player existente se houver
+    if (AppState.youtubePlayers[screenId]) {
+        try {
+            AppState.youtubePlayers[screenId].destroy();
+            delete AppState.youtubePlayers[screenId];
+        } catch (e) {
+            console.error('Erro ao destruir player:', e);
+        }
+    }
+
+    // Limpar container
+    container.innerHTML = '';
+
+    // Verificar tipo de link
+    if (isYouTubeLink(link)) {
+        const videoId = extractYouTubeId(link);
+        if (videoId) {
+            // Se estiver executando localmente, usar iframe direto
+            if (AppState.isLocalProtocol) {
+                renderYouTubeIframe(container, videoId, screenId);
+                return;
+            }
+
+            // Exibir indicador de carregamento
+            container.innerHTML = `
+                <div class="video-placeholder">
+                    <i class="bi bi-hourglass-split"></i>
+                    <span>Verificando vídeo...</span>
+                </div>
+            `;
+
+            // Tentar renderizar o player
+            if (AppState.youtubeAPIReady) {
+                createYouTubePlayer(container, videoId, screenId);
+            } else {
+                // API ainda não pronta. Tentar novamente em breve ou usar fallback.
+                console.log('API YouTube ainda não pronta. Aguardando...');
+                container.innerHTML = `
+                    <div class="video-placeholder">
+                        <i class="bi bi-hourglass-split"></i>
+                        <span>Carregando player...</span>
+                    </div>
+                `;
+
+                let attempts = 0;
+                const maxAttempts = 50; // 5 segundos
+                const checkInterval = setInterval(() => {
+                    attempts++;
+                    if (AppState.youtubeAPIReady) {
+                        clearInterval(checkInterval);
+                        createYouTubePlayer(container, videoId, screenId);
+                    } else if (attempts >= maxAttempts) {
+                        clearInterval(checkInterval);
+                        console.warn('Timeout aguardando API do YouTube. Usando iframe simples.');
+                        renderYouTubeIframe(container, videoId, screenId);
+                    }
+                }, 100);
+            }
+        } else {
+            showPlaceholder(container, 'Link inválido');
+        }
+    } else if (isVimeoLink(link)) {
+        const videoId = extractVimeoId(link);
+        if (videoId) {
+            container.innerHTML = `
+                <iframe
+                    src="https://player.vimeo.com/video/${videoId}?autoplay=1"
+                    allowfullscreen
+                    allow="autoplay; fullscreen; picture-in-picture">
+                </iframe>
+            `;
+        } else {
+            showPlaceholder(container, 'Link inválido');
+        }
+    } else if (link.match(/\.(mp4|webm|ogg)$/i)) {
+        container.innerHTML = `
+            <video controls autoplay>
+                <source src="${link}" type="video/mp4">
+                Seu navegador não suporta o elemento de vídeo.
+            </video>
+        `;
+    } else {
+        container.innerHTML = `
+            <iframe
+                src="${link}"
+                allowfullscreen
+                sandbox="allow-scripts allow-same-origin allow-presentation">
+            </iframe>
+        `;
+    }
+}
+
+function createYouTubePlayer(container, videoId, screenId) {
+    // Limpar placeholder se existir
+    container.innerHTML = '';
+
     // Criar elemento div para o player
     const playerDiv = document.createElement('div');
     playerDiv.id = `youtube-player-${screenId}`;
@@ -76,61 +371,6 @@ if (AppState.youtubeAPIReady) {
         console.error("Erro ao instanciar YT.Player:", e);
         renderYouTubeIframe(container, videoId, screenId);
     }
-} else {
-    // API ainda não pronta. Tentar novamente em breve ou usar fallback.
-    console.log('API YouTube ainda não pronta. Aguardando...');
-    container.innerHTML = `
-                        <div class="video-placeholder">
-                            <i class="bi bi-hourglass-split"></i>
-                            <span>Carregando player...</span>
-                        </div>
-                    `;
-
-    let attempts = 0;
-    const maxAttempts = 50; // 5 segundos
-    const checkInterval = setInterval(() => {
-        attempts++;
-        if (AppState.youtubeAPIReady) {
-            clearInterval(checkInterval);
-            renderVideo(screenId, link);
-        } else if (attempts >= maxAttempts) {
-            clearInterval(checkInterval);
-            console.warn('Timeout aguardando API do YouTube. Usando iframe simples.');
-            renderYouTubeIframe(container, videoId, screenId);
-        }, 100);
-}
-        } else {
-    showPlaceholder(container, 'Link inválido');
-}
-    } else if (isVimeoLink(link)) {
-    const videoId = extractVimeoId(link);
-    if (videoId) {
-        container.innerHTML = `
-                <iframe
-                    src="https://player.vimeo.com/video/${videoId}?autoplay=1"
-                    allowfullscreen
-                    allow="autoplay; fullscreen; picture-in-picture">
-                </iframe>
-            `;
-    } else {
-        showPlaceholder(container, 'Link inválido');
-    }
-} else if (link.match(/\.(mp4|webm|ogg)$/i)) {
-    container.innerHTML = `
-            <video controls autoplay>
-                <source src="${link}" type="video/mp4">
-                Seu navegador não suporta o elemento de vídeo.
-            </video>
-        `;
-} else {
-    container.innerHTML = `
-            <iframe
-                src="${link}"
-                allowfullscreen
-                sandbox="allow-scripts allow-same-origin allow-presentation">
-            </iframe>
-        `;
-}
 }
 
 function showPlaceholder(container, message) {
