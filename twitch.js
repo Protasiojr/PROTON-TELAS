@@ -33,14 +33,23 @@ const Twitch = {
 
     // Gera o URL do iframe para player nativo
     getNativeIframeUrl: function(data) {
-        const hostname = window.location.hostname;
-        const parentParam = hostname ? `&parent=${hostname}` : '';
-        
+        // Twitch exige o parâmetro `parent` contendo o domínio que fará o embed.
+        // Em protocolo file: usamos 'localhost' como fallback (útil para testes locais),
+        // mas em produção deve ser o domínio real.
+        const hostname = (typeof window !== 'undefined' && window.location && window.location.hostname) ? window.location.hostname : '';
+        const protocol = (typeof window !== 'undefined' && window.location && window.location.protocol) ? window.location.protocol : '';
+        let parentHost = '';
+        if (hostname) parentHost = hostname;
+        else if (protocol === 'file:') parentHost = 'localhost';
+
+        const parentParam = parentHost ? `&parent=${encodeURIComponent(parentHost)}` : '';
+
         if (data.type === 'channel') {
             return `https://player.twitch.tv/?channel=${data.id}${parentParam}&autoplay=true`;
         } else if (data.type === 'video') {
             return `https://player.twitch.tv/?video=${data.id}${parentParam}&autoplay=true`;
         } else if (data.type === 'clip') {
+            // Clips usam endpoint diferente
             return `https://clips.twitch.tv/embed?clip=${data.id}${parentParam}&autoplay=true`;
         }
         return null;
@@ -50,10 +59,16 @@ const Twitch = {
     getNativeIframeHtml: function(data, screenId) {
         const iframeUrl = this.getNativeIframeUrl(data);
         if (!iframeUrl) return '';
-        
+        // Twitch requer janelas com pelo menos 400x300 pixels. Aqui mantemos
+        // o iframe responsivo (100%/100%) mas garantimos mínimo via estilo e
+        // também colocamos atributos width/height para compatibilidade.
         return `
             <iframe
                 src="${iframeUrl}"
+                width="100%"
+                height="100%"
+                style="min-width:400px;min-height:300px;width:100%;height:100%;border:0;"
+                frameborder="0"
                 allowfullscreen
                 scrolling="no"
                 allow="autoplay; fullscreen">
