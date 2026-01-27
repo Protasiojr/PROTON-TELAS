@@ -302,8 +302,8 @@ body {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 32px; /* igual ao .btn-eye */
-    height: 32px; /* igual ao .btn-eye */
+    width: 28px; /* igual ao .btn-eye */
+    height: 28px; /* igual ao .btn-eye */
     margin-right: 4px;
     opacity: 0.95;
     transition: opacity 0.2s ease;
@@ -315,8 +315,8 @@ body {
 
 .platform-icon img {
     display: block;
-    width: 16px; /* aproximado ao tamanho do ícone interno do botão */
-    height: 16px;
+    width: 20px; /* aproximado ao tamanho do ícone interno do botão */
+    height: 20px;
 }
 
 /* Input de Link */
