@@ -302,8 +302,8 @@ body {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 28px; /* igual ao .btn-eye */
-    height: 28px; /* igual ao .btn-eye */
+    width: 32px; /* igual ao .btn-eye */
+    height: 32px; /* igual ao .btn-eye */
     margin-right: 4px;
     opacity: 0.95;
     transition: opacity 0.2s ease;
