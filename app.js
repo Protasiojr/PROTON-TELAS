@@ -271,12 +271,14 @@ function renderVideo(screenId, link) {
 }
 
 function renderYouTubeIframe(container, videoId, screenId) {
+    const origin = window.location.origin;
     container.innerHTML = `
         <iframe
             id="youtube-player-${screenId}"
-            src="https://www.youtube.com/embed/${videoId}?autoplay=1&mute=1&rel=0&playsinline=1&enablejsapi=1"
+            src="https://www.youtube.com/embed/${videoId}?autoplay=1&mute=1&rel=0&playsinline=1&enablejsapi=1&origin=${origin}"
             frameborder="0"
             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+            referrerpolicy="strict-origin-when-cross-origin"
             allowfullscreen>
         </iframe>
     `;
