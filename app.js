@@ -93,10 +93,26 @@ function createScreenCard(screenData) {
     card.className = 'screen-card';
     card.dataset.screenId = screenData.id;
 
+    // Função auxiliar para detectar plataforma
+    function getPlatformIcon(link) {
+        if (!link) return '';
+        if (isYouTubeLink(link)) {
+            return '<img src="https://upload.wikimedia.org/wikipedia/commons/9/9f/Youtube%28amin%29.png" alt="YouTube" title="YouTube" style="height:20px;vertical-align:middle;margin-right:4px;">';
+        }
+        if (isVimeoLink(link)) {
+            return '<img src="https://upload.wikimedia.org/wikipedia/commons/9/9c/Vimeo_Logo.svg" alt="Vimeo" title="Vimeo" style="height:20px;vertical-align:middle;margin-right:4px;">';
+        }
+        if (isTwitchLink(link)) {
+            return '<img src="https://upload.wikimedia.org/wikipedia/commons/5/5f/Twitch_logo.svg" alt="Twitch" title="Twitch" style="height:20px;vertical-align:middle;margin-right:4px;">';
+        }
+        return '';
+    }
+
     card.innerHTML = `
         <div class="screen-header">
             <span class="screen-title">Tela ${screenData.id}</span>
             <div class="video-controls">
+                ${getPlatformIcon(screenData.link)}
                 <button class="btn-eye" data-screen-id="${screenData.id}" title="Mostrar/Ocultar Vídeo">
                     <i class="bi bi-eye${screenData.visible ? '' : '-slash'}"></i>
                 </button>
