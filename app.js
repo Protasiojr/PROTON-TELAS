@@ -249,7 +249,17 @@ function renderVideo(screenId, link) {
     if (isYouTubeLink(link)) {
         const videoId = extractYouTubeId(link);
         if (videoId) {
-            container.innerHTML = `<div id="player-${screenId}" data-plyr-provider="youtube" data-plyr-embed-id="${videoId}"></div>`;
+            const origin = window.location.origin;
+            container.innerHTML = `
+                <div class="plyr__video-embed" id="player-${screenId}">
+                    <iframe
+                        src="https://www.youtube.com/embed/${videoId}?origin=${origin}&iv_load_policy=3&modestbranding=1&playsinline=1&showinfo=0&rel=0&enablejsapi=1"
+                        allowfullscreen
+                        allowtransparency
+                        allow="autoplay">
+                    </iframe>
+                </div>
+            `;
             initializePlyr(screenId, `#player-${screenId}`);
             return;
         }
