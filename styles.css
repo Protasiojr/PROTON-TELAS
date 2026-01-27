@@ -224,7 +224,8 @@ body {
 }
 
 .video-container iframe,
-.video-container video {
+.video-container video,
+.video-container .plyr {
     position: absolute;
     top: 0;
     left: 0;
@@ -238,21 +239,18 @@ body {
 }
 
 .video-container:has(iframe),
-.video-container:has(video) {
+.video-container:has(video),
+.video-container:has(.plyr) {
     padding-top: 0;
 }
 
-/* Estilos específicos para players do YouTube */
-.video-container > div[id^="youtube-player-"] {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
+/* Estilos específicos para players do YouTube/Plyr */
+.plyr--video {
     height: 100%;
 }
 
-.video-container:has(div[id^="youtube-player-"]) {
-    padding-top: 0;
+.plyr__video-wrapper {
+    height: 100%;
 }
 
 .video-placeholder {
