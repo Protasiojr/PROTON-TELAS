@@ -166,19 +166,19 @@ function createScreenCard(screenData) {
                 </div>
             </div>
             <div class="link-input-group">
+                <div class="control-buttons">
+                    <button class="btn-control" data-action="refresh" data-screen-id="${screenData.id}" title="Atualizar Vídeo">
+                        <i class="bi bi-arrow-clockwise"></i>
+                    </button>
+                    <button class="btn-control" data-action="apply" data-screen-id="${screenData.id}" title="Aplicar Vídeo">
+                        <i class="bi bi-play-fill"></i>
+                    </button>
+                </div>
                 <input type="text" 
                        class="link-input" 
                        id="linkInput-${screenData.id}" 
                        placeholder="Cole o link do vídeo aqui..."
                        data-screen-id="${screenData.id}">
-            </div>
-            <div class="control-buttons">
-                <button class="btn-control" data-action="refresh" data-screen-id="${screenData.id}" title="Atualizar Vídeo">
-                    <i class="bi bi-arrow-clockwise"></i>
-                </button>
-                <button class="btn-control" data-action="apply" data-screen-id="${screenData.id}" title="Aplicar Vídeo">
-                    <i class="bi bi-play-fill"></i>
-                </button>
             </div>
         </div>
     `;

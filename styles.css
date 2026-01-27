@@ -360,7 +360,7 @@ body {
     background-color: var(--button-color);
     color: var(--primary-color);
     border: none;
-    padding: 0.35rem 0.75rem;
+    padding: 0.35rem 0.5rem;
     border-radius: 6px;
     font-size: 0.75rem;
     display: flex;
