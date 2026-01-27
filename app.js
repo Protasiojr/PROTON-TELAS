@@ -357,7 +357,22 @@ function renderNativeVideo(container, link, screenId) {
     } else if (vimeoId) {
         container.innerHTML = Vimeo.getNativeIframeHtml(vimeoId, screenId);
     } else if (twitchData) {
-        container.innerHTML = Twitch.getNativeIframeHtml(twitchData, screenId);
+        // Se a aplicação estiver sendo aberta via file: ou sem hostname, o
+        // Twitch bloqueará o embed por causa de CSP/frame-ancestors. Detectamos
+        // este caso e mostramos uma mensagem orientando o usuário a rodar
+        // o app via servidor local (ex: http://localhost:5500).
+        const protocol = window.location.protocol;
+        const hostname = window.location.hostname;
+        if (protocol === 'file:' || !hostname) {
+            container.innerHTML = `
+                <div class="video-placeholder">
+                    <i class="bi bi-exclamation-triangle"></i>
+                    <span>Embed Twitch bloqueado: rode a aplicação via servidor local (ex: http://localhost:5500) para permitir o parâmetro "parent" requerido pelo Twitch.</span>
+                </div>
+            `;
+        } else {
+            container.innerHTML = Twitch.getNativeIframeHtml(twitchData, screenId);
+        }
     } else if (kickId) {
         container.innerHTML = Kick.getNativeIframeHtml(kickId, screenId);
     } else {
@@ -384,7 +399,10 @@ function initializePlyr(screenId, selector) {
         player.on('ready', () => {
             console.log(`Plyr pronto na tela ${screenId}`);
             // Tentar autoplay se permitido pelo navegador
-            player.play().catch(e => console.warn('Autoplay bloqueado pelo navegador:', e));
+            const playResult = player.play();
+            if (playResult && typeof playResult.catch === 'function') {
+                playResult.catch(e => console.warn('Autoplay bloqueado pelo navegador:', e));
+            }
         });
 
     } catch (e) {
