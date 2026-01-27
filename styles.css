@@ -315,8 +315,8 @@ body {
 
 .platform-icon img {
     display: block;
-    width: 26px; /* aproximado ao tamanho do ícone interno do botão */
-    height: 26px;
+    width: 28px; /* aproximado ao tamanho do ícone interno do botão */
+    height: 28px;
 }
 
 /* Input de Link */
