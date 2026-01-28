@@ -1,0 +1,18 @@
+/* Twitch specific styles.
+   Enforce minimum embed sizing and responsive behaviour to match Twitch requirements.
+*/
+
+/* Ensure Twitch player iframes respect minimum 400x300 size required by Twitch */
+iframe[src*="player.twitch.tv"],
+iframe[src*="clips.twitch.tv"],
+.video-container iframe[src*="twitch.tv"] {
+   min-width: 400px;
+   min-height: 300px;
+   width: 100%;
+   height: 100%;
+}
+
+/* If a Twitch embed is placed in a small grid cell, allow scroll/containment */
+.video-container {
+   overflow: hidden;
+}

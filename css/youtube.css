@@ -1,0 +1,16 @@
+/* YouTube / Plyr specific styles (moved from styles.css)
+   Kept minimal to avoid visual regressions. */
+
+.plyr--video {
+    height: 100%;
+}
+
+.plyr__video-wrapper {
+    height: 100%;
+}
+
+/* YouTube iframe specific fallback (ensure responsive) */
+.video-container iframe[src*="youtube.com"] {
+    width: 100%;
+    height: 100%;
+}

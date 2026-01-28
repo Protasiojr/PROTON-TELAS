@@ -1,0 +1,16 @@
+/* Vimeo specific styles (Plyr/Vimeo player tweaks)
+   Kept minimal to avoid visual regressions. */
+
+.plyr--video {
+   height: 100%;
+}
+
+.plyr__video-wrapper {
+   height: 100%;
+}
+
+/* Vimeo iframe responsiveness */
+.video-container iframe[src*="player.vimeo.com"] {
+   width: 100%;
+   height: 100%;
+}

@@ -227,14 +227,7 @@ body {
     padding-top: 0;
 }
 
-/* Estilos específicos para players do YouTube/Plyr */
-.plyr--video {
-    height: 100%;
-}
-
-.plyr__video-wrapper {
-    height: 100%;
-}
+/* Estilos específicos para players moved to css/youtube.css */
 
 .video-placeholder {
     position: absolute;
@@ -449,7 +442,7 @@ body {
 .locked .btn-control,
 .locked .btn-eye,
 .locked #btnSave,
-.locked #btnUpload {
+-locked #btnUpload {
     pointer-events: none;
     opacity: 0.6;
 }

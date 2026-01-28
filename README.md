@@ -34,7 +34,7 @@ Notas
 
 Arquivos principais
 
-- `index.html`, `styles.css`, `js/app.js`, `js/youtube.js`, `js/vimeo.js`, `js/twitch.js`, `js/kick.js`.
+- `index.html`, `css/styles.css`, `js/app.js`, `js/youtube.js`, `js/vimeo.js`, `js/twitch.js`, `js/kick.js`.
 
 ---
 Desenvolvido por João Protásio da Luz Júnior
