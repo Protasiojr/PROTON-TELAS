@@ -158,12 +158,7 @@ function createScreenCard(screenData) {
     card.dataset.screenId = screenData.id;
 
     card.innerHTML = `
-        <div class="screen-header">
-            <span class="screen-title">Tela ${screenData.id}</span>
-            <div class="video-controls">
-            </div>
-        </div>
-        <div class="screen-body">
+        <div class="screen-body no-header">
             <div class="video-container" id="videoContainer-${screenData.id}">
                 <div class="video-placeholder">
                     <i class="bi bi-play-circle"></i>
