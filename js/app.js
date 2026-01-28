@@ -12,7 +12,8 @@ const AppState = {
     defaultScreens: 4,
     plyrInstances: {}, // Armazena instâncias do Plyr
     isPlaying: {},
-    isLocalProtocol: window.location.protocol === 'file:'
+    isLocalProtocol: window.location.protocol === 'file:',
+    barsHidden: false
 };
 
 // ==========================================
@@ -26,6 +27,17 @@ function initializeApp() {
     generateScreens(AppState.defaultScreens);
     setupEventListeners();
     loadFromLocalStorage();
+
+    // Aplicar preferência de ocultar barras (navbar/footer) se salva
+    try {
+        const saved = localStorage.getItem('protonTelas_hideBars');
+        if (saved === '1') {
+            AppState.barsHidden = true;
+            document.body.classList.add('hide-bars');
+        }
+    } catch (e) {
+        // ignore
+    }
 }
 
 // Função para recarregar todos os vídeos
@@ -229,11 +241,24 @@ function setupEventListeners() {
     // Botão Save
     document.getElementById('btnSave').addEventListener('click', saveConfigurations);
 
+    // Botão Toggle Navbar/Footer
+    const btnToggle = document.getElementById('btnToggleBars');
+    if (btnToggle) btnToggle.addEventListener('click', toggleUiBars);
+
     // Event delegation para botões de tela
     document.getElementById('screensContainer').addEventListener('click', handleScreenButtonClick);
 
     // Event delegation para inputs de link
     document.getElementById('screensContainer').addEventListener('input', handleLinkInput);
+
+    // Tecla ESC: quando barras estiverem ocultas, restaurar (retornar)
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' || e.key === 'Esc') {
+            if (AppState.barsHidden) {
+                toggleUiBars();
+            }
+        }
+    });
 }
 
 function handleScreenButtonClick(e) {
@@ -463,6 +488,23 @@ function toggleLock() {
         showNotification('Aplicação desbloqueada', 'info');
     }
 }
+
+// Alterna visibilidade da Navbar e do Footer para dar mais espaço aos cards
+function toggleUiBars() {
+    AppState.barsHidden = !AppState.barsHidden;
+    document.body.classList.toggle('hide-bars', AppState.barsHidden);
+
+    try {
+        localStorage.setItem('protonTelas_hideBars', AppState.barsHidden ? '1' : '0');
+    } catch (e) {
+        // ignore
+    }
+
+    showNotification(AppState.barsHidden ? 'Navbar e footer ocultos' : 'Navbar e footer visíveis', 'info');
+}
+
+// Tornar a função acessível globalmente via console caso o usuário queira chamar
+window.toggleUiBars = toggleUiBars;
 
 // ==========================================
 // SALVAR E CARREGAR CONFIGURAÇÕES

@@ -453,6 +453,24 @@ body {
     }
 }
 
+/* Ocultar Navbar e Footer para maximizar área dos cards */
+body.hide-bars .navbar,
+body.hide-bars .footer {
+    display: none !important;
+}
+
+body.hide-bars .main-content {
+    padding: 0 !important;
+}
+
+body.hide-bars .screens-grid {
+    gap: 0 !important;
+}
+
+body.hide-bars .screen-card {
+    border-radius: 0 !important;
+}
+
 /* Estado Bloqueado */
 .locked .link-input,
 .locked .btn-control,
