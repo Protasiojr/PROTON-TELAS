@@ -289,6 +289,22 @@ body {
     opacity: 1;
 }
 
+/* Quando o ícone da plataforma está ao lado do input de link */
+.link-input-group > .platform-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    margin-left: 4px;
+    opacity: 0.95;
+    transition: opacity 0.2s ease;
+}
+
+.link-input-group > .platform-icon:hover {
+    opacity: 1;
+}
+
 .platform-icon img {
     display: block;
     width: 28px; /* aproximado ao tamanho do ícone interno do botão */

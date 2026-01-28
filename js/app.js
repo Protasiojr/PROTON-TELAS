@@ -110,24 +110,33 @@ function getPlatformIcon(link) {
 
 // Função para atualizar o ícone da plataforma no DOM
 function updatePlatformIcon(screenId, link) {
-    let videoControls = document.querySelector(`.screen-card[data-screen-id="${screenId}"] .video-controls`);
-    if (!videoControls) return;
+    const placeholderId = `platformIcon-${screenId}`;
 
-    // Garantir que exista o placeholder (span) para o ícone
-    let placeholder = document.getElementById(`platformIcon-${screenId}`);
+    // Tentar localizar o placeholder existente
+    let placeholder = document.getElementById(placeholderId);
+
+    // Se não existir, criar e inserir logo após o input de link
     if (!placeholder) {
+        const input = document.getElementById(`linkInput-${screenId}`);
         placeholder = document.createElement('span');
         placeholder.className = 'platform-icon';
-        placeholder.id = `platformIcon-${screenId}`;
-        videoControls.insertBefore(placeholder, videoControls.firstChild || null);
+        placeholder.id = placeholderId;
+
+        if (input && input.parentNode) {
+            input.parentNode.insertBefore(placeholder, input.nextSibling);
+        } else {
+            // fallback: inserir no header (compatibilidade)
+            const headerControls = document.querySelector(`.screen-card[data-screen-id="${screenId}"] .video-controls`);
+            if (headerControls) headerControls.insertBefore(placeholder, headerControls.firstChild || null);
+        }
     }
 
     // Limpar conteúdo atual
     placeholder.innerHTML = '';
 
-    // Definir conteúdo com fallback inline (ícones bi se disponíveis, senão texto)
     if (!link) return;
 
+    // Definir ícone conforme a plataforma detectada
     if (YouTube.isValidUrl(link)) {
         placeholder.innerHTML = `<img src="../assets/youtube.svg" alt="YouTube" title="YouTube" class="platform-icon">`;
         placeholder.setAttribute('title', 'YouTube');
@@ -152,10 +161,6 @@ function createScreenCard(screenData) {
         <div class="screen-header">
             <span class="screen-title">Tela ${screenData.id}</span>
             <div class="video-controls">
-                <span class="platform-icon" id="platformIcon-${screenData.id}"></span>
-                <button class="btn-eye" data-screen-id="${screenData.id}" title="Mostrar/Ocultar Vídeo">
-                    <i class="bi bi-eye${screenData.visible ? '' : '-slash'}"></i>
-                </button>
             </div>
         </div>
         <div class="screen-body">
@@ -179,6 +184,10 @@ function createScreenCard(screenData) {
                        id="linkInput-${screenData.id}" 
                        placeholder="Cole o link do vídeo aqui..."
                        data-screen-id="${screenData.id}">
+                <span class="platform-icon" id="platformIcon-${screenData.id}"></span>
+                <button class="btn-eye" data-screen-id="${screenData.id}" title="Mostrar/Ocultar Vídeo">
+                    <i class="bi bi-eye${screenData.visible ? '' : '-slash'}"></i>
+                </button>
             </div>
         </div>
     `;
