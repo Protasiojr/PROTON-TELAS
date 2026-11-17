@@ -79,7 +79,9 @@ function generateScreens(count) {
         const screenData = {
             id: i + 1,
             link: '',
-            visible: true
+            activeLink: '',
+            visible: true,
+            captionsDisabled: false
         };
         AppState.screens.push(screenData);
         container.appendChild(createScreenCard(screenData));
@@ -185,6 +187,9 @@ function createScreenCard(screenData) {
                     <button class="btn-control" data-action="apply" data-screen-id="${screenData.id}" title="Aplicar Vídeo">
                         <i class="bi bi-play-fill"></i>
                     </button>
+                    <button class="btn-control btn-caption-toggle" data-action="captions" data-screen-id="${screenData.id}" title="Aplique um vídeo compatível para controlar legendas" aria-label="Aplique um vídeo compatível para controlar legendas" aria-pressed="false" disabled>
+                        <i class="bi bi-badge-cc"></i>
+                    </button>
                 </div>
                 <input type="text" 
                        class="link-input" 
@@ -270,11 +275,69 @@ function handleScreenButtonClick(e) {
 
     if (button.classList.contains('btn-eye')) {
         toggleVideoVisibility(screenId);
+    } else if (action === 'captions') {
+        toggleScreenCaptions(screenId);
     } else if (action === 'refresh') {
         refreshVideo(screenId);
     } else if (action === 'apply') {
         applyVideo(screenId);
     }
+}
+
+function toggleScreenCaptions(screenId) {
+    const screen = AppState.screens.find(item => item.id === screenId);
+    if (!screen) return;
+
+    if (YouTube.isValidUrl(screen.activeLink || '')) {
+        showNotification('O YouTube não permite controlar legendas por este botão. Use o controle CC do próprio player.', 'warning');
+        return;
+    }
+
+    const player = AppState.plyrInstances[screenId];
+    if (!player || typeof player.toggleCaptions !== 'function') {
+        showNotification('Este player externo não permite controlar legendas pelo Próton Telas.', 'warning');
+        return;
+    }
+
+    const disableCaptions = !screen.captionsDisabled;
+    if (disableCaptions) {
+        try {
+            player.toggleCaptions(false);
+        } catch (error) {
+            console.error('Não foi possível desativar as legendas deste player:', error);
+            showNotification('Não foi possível desativar as legendas deste player.', 'error');
+            return;
+        }
+    }
+    screen.captionsDisabled = disableCaptions;
+
+    const card = document.querySelector(`.screen-card[data-screen-id="${screenId}"]`);
+    card?.classList.toggle('captions-disabled', screen.captionsDisabled);
+    updateCaptionButton(screenId);
+}
+
+function updateCaptionButton(screenId) {
+    const screen = AppState.screens.find(item => item.id === screenId);
+    const button = document.querySelector(`.btn-caption-toggle[data-screen-id="${screenId}"]`);
+    if (!screen || !button) return;
+
+    const isYouTube = YouTube.isValidUrl(screen.activeLink || '');
+    const hasPlyrCaptionControl = Boolean(AppState.plyrInstances[screenId]?.toggleCaptions);
+    if (isYouTube && screen.captionsDisabled) {
+        screen.captionsDisabled = false;
+        document.querySelector(`.screen-card[data-screen-id="${screenId}"]`)?.classList.remove('captions-disabled');
+    }
+    const canControlCaptions = !isYouTube && hasPlyrCaptionControl;
+    button.hidden = isYouTube;
+    button.disabled = !hasPlyrCaptionControl;
+    button.title = isYouTube
+        ? 'No YouTube, use o controle CC do próprio player'
+        : canControlCaptions
+            ? (screen.captionsDisabled ? 'Permitir legendas deste player' : 'Desativar legendas deste player')
+            : 'Este player não oferece controle de legendas pelo Próton Telas';
+    button.setAttribute('aria-label', button.title);
+    button.setAttribute('aria-pressed', String(screen.captionsDisabled));
+    button.classList.toggle('active', screen.captionsDisabled);
 }
 
 function handleLinkInput(e) {
@@ -320,6 +383,8 @@ function refreshVideo(screenId) {
 
 function renderVideo(screenId, link) {
     const container = document.getElementById(`videoContainer-${screenId}`);
+    const screen = AppState.screens.find(item => item.id === screenId);
+    if (screen) screen.activeLink = link;
 
     // Destruir instância anterior se existir
     if (AppState.plyrInstances[screenId]) {
@@ -337,6 +402,7 @@ function renderVideo(screenId, link) {
     if (typeof Plyr === 'undefined') {
         console.warn('Plyr não carregado. Usando fallback nativo.');
         renderNativeVideo(container, link, screenId);
+        updateCaptionButton(screenId);
         return;
     }
 
@@ -347,8 +413,7 @@ function renderVideo(screenId, link) {
     const kickId = Kick.extractChannelId(link);
 
     if (youtubeId) {
-        container.innerHTML = YouTube.getPlyrIframeHtml(youtubeId, screenId);
-        initializePlyr(screenId, `#player-${screenId}`);
+        container.innerHTML = YouTube.getNativeIframeHtml(youtubeId, screenId);
     } else if (vimeoId) {
         container.innerHTML = Vimeo.getPlyrContainerHtml(vimeoId, screenId);
         initializePlyr(screenId, `#player-${screenId}`);
@@ -385,6 +450,8 @@ function renderVideo(screenId, link) {
             renderNativeVideo(container, link, screenId);
         }
     }
+
+    updateCaptionButton(screenId);
 }
 
 // Fallback para player nativo (sem Plyr ou em caso de erro)
@@ -418,6 +485,7 @@ function initializePlyr(screenId, selector) {
         const player = new Plyr(selector, {
             controls: ['play-large', 'play', 'progress', 'current-time', 'mute', 'volume', 'captions', 'settings', 'pip', 'airplay', 'fullscreen'],
             autoplay: true,
+            captions: { active: false },
             youtube: { noCookie: true, rel: 0, showinfo: 0, iv_load_policy: 3, modestbranding: 1 }
         });
 
@@ -425,6 +493,10 @@ function initializePlyr(screenId, selector) {
 
         player.on('ready', () => {
             console.log(`Plyr pronto na tela ${screenId}`);
+            const screen = AppState.screens.find(item => item.id === screenId);
+            if (screen?.captionsDisabled && typeof player.toggleCaptions === 'function') {
+                player.toggleCaptions(false);
+            }
             // Tentar autoplay se permitido pelo navegador
             const playResult = player.play();
             if (playResult && typeof playResult.catch === 'function') {
@@ -515,7 +587,8 @@ function saveConfigurations() {
         screens: AppState.screens.map(screen => ({
             id: screen.id,
             link: document.getElementById(`linkInput-${screen.id}`).value.trim(),
-            visible: screen.visible
+            visible: screen.visible,
+            captionsDisabled: screen.captionsDisabled
         })),
         version: '11.0',
         savedAt: new Date().toISOString()
@@ -579,6 +652,10 @@ function loadConfigurations(config) {
         if (screen) {
             screen.link = screenConfig.link || '';
             screen.visible = screenConfig.visible !== undefined ? screenConfig.visible : true;
+            screen.captionsDisabled = screenConfig.captionsDisabled === true;
+            const screenCard = document.querySelector(`.screen-card[data-screen-id="${screen.id}"]`);
+            screenCard?.classList.toggle('captions-disabled', screen.captionsDisabled);
+            updateCaptionButton(screen.id);
 
             // Atualizar input
             const input = document.getElementById(`linkInput-${screen.id}`);

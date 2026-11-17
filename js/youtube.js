@@ -28,7 +28,7 @@ const YouTube = {
     // Gera o URL do iframe para player nativo
     getNativeIframeUrl: function(videoId) {
         const origin = window.location.origin;
-        return `https://www.youtube.com/embed/${videoId}?origin=${origin}&autoplay=1&mute=1&rel=0&playsinline=1&enablejsapi=1`;
+        return `https://www.youtube.com/embed/${videoId}?origin=${origin}&autoplay=1&mute=1&controls=1&rel=0&playsinline=1&enablejsapi=1`;
     },
 
     // Gera o HTML do iframe para Plyr
